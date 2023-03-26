@@ -58,33 +58,33 @@
 	   1.0,  1.0,
 	];
 
-	function render() {
-		/*************************
-		 * GL Setup              *
-		 * May want to move out. *
-		 *************************/
+	let canvas, gl, program;
+
+	window.addEventListener("load", init);
+
+	window.addEventListener("load", function() {
+		canvas = document.getElementById("content");
+		
+		canvas.addEventListener("pointerdown", () => {
+			console.log("down!");
+		});
+
+		canvas.addEventListener("pointerup", () => {
+			console.log("up!");
+		});
+
+		canvas.addEventListener("pointerleave", () => {
+			console.log("leave!");
+		});
+	});
+
+	function init() {
 		canvas = document.getElementById("content");
 		gl = canvas.getContext("webgl");
-
-		const pixelRatio = window.devicePixelRatio || 1;
-		// FIXME: May want to use values other than clientWidth/Height
-		canvas.width  = pixelRatio * canvas.clientWidth;
-		canvas.height = pixelRatio * canvas.clientHeight;
-		gl.viewport(0, 0, canvas.width, canvas.height);
 		gl.clearColor(1, 1, 1, 0);
-
-		/****************************
-		 * Position Attribute Setup *
-		 * Will want to move out.   *
-		 ****************************/	
-		const posBuffer = gl.createBuffer();
-		gl.bindBuffer(gl.ARRAY_BUFFER, posBuffer);
-		gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(positions), gl.STATIC_DRAW);
-
 
 		/************************************
 		 * GL Shader Compilation & Linking. *
-		 * Will want to move out of render. *
 		 ************************************/	
 		const vs = gl.createShader(gl.VERTEX_SHADER);
 		gl.shaderSource(vs, vertexShader);
@@ -104,7 +104,7 @@
 			gl.deleteShader(fs);
 		}
 		
-		const program = gl.createProgram();
+		program = gl.createProgram();
 		gl.attachShader(program, vs);
 		gl.attachShader(program, fs);
 		gl.linkProgram(program);
@@ -112,6 +112,31 @@
 		if ( ! gl.getProgramParameter(program, gl.LINK_STATUS) ) {
 			alert( gl.getProgramInfoLog(program) );
 		}
+
+		/****************************
+		 * Position Attribute Setup *
+		 ****************************/	
+		const posBuffer = gl.createBuffer();
+		gl.bindBuffer(gl.ARRAY_BUFFER, posBuffer);
+		gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(positions), gl.STATIC_DRAW);
+
+		const p = gl.getAttribLocation(program, "renderPos");
+		gl.bindBuffer(gl.ARRAY_BUFFER, posBuffer);
+		gl.vertexAttribPointer(p, 2, gl.FLOAT, false, 0, 0);
+		gl.enableVertexAttribArray(p);
+
+		render();
+	}
+
+	function render() {
+		/*************************
+		 * GL Setup              *
+		 * May want to move out. *
+		 *************************/
+		const pixelRatio = window.devicePixelRatio || 1;
+		canvas.width  = pixelRatio * canvas.clientWidth;
+		canvas.height = pixelRatio * canvas.clientHeight;
+		gl.viewport(0, 0, canvas.width, canvas.height);
 
 		/**********************************
 		 * Matrix Transform Uniform Setup *
@@ -127,14 +152,6 @@
 		gl.useProgram(program);
 		gl.uniformMatrix3fv(m, false, matrix);
 
-		/***********************************************
-		 * Assign Position Attribute Buffer to Program *
-		 * *********************************************/
-		const p = gl.getAttribLocation(program, "renderPos");
-		gl.bindBuffer(gl.ARRAY_BUFFER, posBuffer);
-		gl.vertexAttribPointer(p, 2, gl.FLOAT, false, 0, 0);
-		gl.enableVertexAttribArray(p);
-
 		/*****************************
 		 * Actually render the scene *
 		 *****************************/
@@ -142,24 +159,6 @@
 		gl.useProgram(program);
 		gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
 	}
-
-	window.onload = () => render();
-
-	window.addEventListener("load", function() {
-		canvas = document.getElementById("content");
-		
-		canvas.addEventListener("pointerdown", () => {
-			console.log("down!");
-		});
-
-		canvas.addEventListener("pointerup", () => {
-			console.log("up!");
-		});
-
-		canvas.addEventListener("pointerleave", () => {
-			console.log("leave!");
-		});
-	});
 
 </script>
 
