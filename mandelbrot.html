@@ -60,9 +60,9 @@
 
 	let canvas, gl, program;
 
-	let zoom = 3,
-		x = 0,
-		y = 0;
+	let zoom = 3;
+	let x = 0, y = 0;
+	let dragStart = null;
 
 	window.addEventListener("load", init);
 	window.addEventListener("resize", render);
@@ -70,16 +70,36 @@
 	window.addEventListener("load", function() {
 		canvas = document.getElementById("content");
 		
-		canvas.addEventListener("pointerdown", () => {
+		canvas.addEventListener("pointerdown", e => {
 			console.log("down!");
+			// Figure out where the clicked point in view-space maps to in world-space
+			const minDim = canvas.width < canvas.height ? canvas.width : canvas.height;
+			dragStart = [(e.offsetX - canvas.width / 2) / minDim * zoom * 2 + x,
+			             -(e.offsetY - canvas.height / 2) / minDim * zoom * 2 + y];
+		});
+
+		canvas.addEventListener("pointermove", e => {
+			if (!dragStart) return;
+
+			// Figure out where the clicked point in view-space maps to in world-space
+			[startX, startY] = dragStart;
+			const minDim = canvas.width < canvas.height ? canvas.width : canvas.height;
+			const [currX, currY] = [(e.offsetX - canvas.width / 2) / minDim * zoom * 2 + x,
+			             			-(e.offsetY - canvas.height / 2) / minDim * zoom * 2 + y];
+			// Move frame s.t. dragStart is under the clicked point
+			x += startX - currX; y += startY - currY;
+
+			render();
 		});
 
 		canvas.addEventListener("pointerup", () => {
 			console.log("up!");
+			dragStart = null;
 		});
 
 		canvas.addEventListener("pointerleave", () => {
 			console.log("leave!");
+			dragStart = null;
 		});
 
 		canvas.addEventListener("wheel", e => {
