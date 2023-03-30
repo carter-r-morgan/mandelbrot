@@ -60,7 +60,9 @@
 
 	let canvas, gl, program;
 
-	let zoom = 3;
+	let zoom = 3,
+		x = 0,
+		y = 0;
 
 	window.addEventListener("load", init);
 	window.addEventListener("resize", render);
@@ -78,6 +80,19 @@
 
 		canvas.addEventListener("pointerleave", () => {
 			console.log("leave!");
+		});
+
+		canvas.addEventListener("wheel", e => {
+			// TODO: Make these transforms less gross
+			const zoomRatio = Math.pow(101/100, e.deltaY);
+			const [viewX, viewY] = [e.offsetX - (canvas.width / 2),
+			                		e.offsetY - (canvas.height / 2)]
+			const minDim = canvas.width < canvas.height ? canvas.width : canvas.height;
+			const [worldX, worldY] = [viewX * zoom / (minDim / 2), -viewY * zoom / (minDim / 2)];
+			const [dx, dy] = [(1 - zoomRatio)*worldX, (1 - zoomRatio)*worldY]; // dv = v - av = (1 - a)v
+			x += dx; y += dy;
+			zoom *= zoomRatio
+			render();
 		});
 	});
 
@@ -148,10 +163,10 @@
 		const [scaleX, scaleY] = canvas.width > canvas.height
 							   ? [zoom * (canvas.width / canvas.height), zoom]
 							   : [zoom, zoom * (canvas.height / canvas.width)];
-		let matrix = [ // FIXME: Will want to scale & shift based on user input (not static)
+		let matrix = [
 		  scaleX , 0      , 0,
 		  0      , scaleY , 0,
-		  0      , 0      , 1
+		  x      , y      , 1
 		];
 
 		const m = gl.getUniformLocation(program, "transform");
