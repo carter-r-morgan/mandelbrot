@@ -116,6 +116,13 @@
 		});
 	});
 
+	function set(X, Y, Z) {
+		x = X;
+		y = Y;
+		zoom = Z;
+		render();
+	}
+
 	function init() {
 		canvas = document.getElementById("content");
 		gl = canvas.getContext("webgl");
