@@ -104,7 +104,7 @@
 
 		canvas.addEventListener("wheel", e => {
 			// TODO: Make these transforms less gross
-			const zoomRatio = Math.pow(101/100, e.deltaY);
+			const zoomRatio = Math.pow(4/3, e.deltaY / 100);
 			const [viewX, viewY] = [e.offsetX - (canvas.width / 2),
 			                		e.offsetY - (canvas.height / 2)]
 			const minDim = canvas.width < canvas.height ? canvas.width : canvas.height;
