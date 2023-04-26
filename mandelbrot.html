@@ -72,20 +72,14 @@
 		
 		canvas.addEventListener("pointerdown", e => {
 			console.log("down!");
-			// Figure out where the clicked point in view-space maps to in world-space
-			const minDim = canvas.width < canvas.height ? canvas.width : canvas.height;
-			dragStart = [(e.offsetX - canvas.width / 2) / minDim * zoom * 2 + x,
-			             -(e.offsetY - canvas.height / 2) / minDim * zoom * 2 + y];
+			dragStart = mapVW([e.offsetX, e.offsetY]);
 		});
 
 		canvas.addEventListener("pointermove", e => {
 			if (!dragStart) return;
 
-			// Figure out where the clicked point in view-space maps to in world-space
 			[startX, startY] = dragStart;
-			const minDim = canvas.width < canvas.height ? canvas.width : canvas.height;
-			const [currX, currY] = [(e.offsetX - canvas.width / 2) / minDim * zoom * 2 + x,
-			             			-(e.offsetY - canvas.height / 2) / minDim * zoom * 2 + y];
+			const [currX, currY] = mapVW([e.offsetX, e.offsetY]);
 			// Move frame s.t. dragStart is under the clicked point
 			x += startX - currX; y += startY - currY;
 
@@ -103,18 +97,31 @@
 		});
 
 		canvas.addEventListener("wheel", e => {
-			// TODO: Make these transforms less gross
 			const zoomRatio = Math.pow(4/3, e.deltaY / 100);
-			const [viewX, viewY] = [e.offsetX - (canvas.width / 2),
-			                		e.offsetY - (canvas.height / 2)]
-			const minDim = canvas.width < canvas.height ? canvas.width : canvas.height;
-			const [worldX, worldY] = [viewX * zoom / (minDim / 2), -viewY * zoom / (minDim / 2)];
-			const [dx, dy] = [(1 - zoomRatio)*worldX, (1 - zoomRatio)*worldY]; // dv = v - av = (1 - a)v
+			// p is the world-coordinate corresponding to the pointer's position.
+			const [pX, pY] = mapVW([e.offsetX, e.offsetY]);
+
+			// v is the vector from the window's position to p.
+			// When the window is zoomed, we want p to remain fixed under the pointer, so we
+			// move the window according to the equation: delta = v - zoom*v = (1 - zoom)*v
+			const [vX, vY] = [pX - x, pY - y];
+			const [dx, dy] = [(1 - zoomRatio)*vX, (1 - zoomRatio)*vY];
+
 			x += dx; y += dy;
 			zoom *= zoomRatio
 			render();
 		});
 	});
+
+	/**
+	 * Map some positon from view-space (relative to the top-left corner of the canvas) to world-space.
+	 */
+	function mapVW(position) {
+		const [X, Y] = position;
+		const minDim = canvas.width < canvas.height ? canvas.width : canvas.height;
+		return [(X - canvas.width / 2) / minDim * zoom * 2 + x,
+		        -(Y - canvas.height / 2) / minDim * zoom * 2 + y];
+	}
 
 	function set(X, Y, Z) {
 		x = X;
