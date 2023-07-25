@@ -67,52 +67,6 @@
 	window.addEventListener("load", init);
 	window.addEventListener("resize", render);
 
-	window.addEventListener("load", function() {
-		canvas = document.getElementById("content");
-		
-		canvas.addEventListener("pointerdown", e => {
-			console.log("down!");
-			dragStart = mapVW([e.offsetX, e.offsetY]);
-		});
-
-		canvas.addEventListener("pointermove", e => {
-			if (!dragStart) return;
-
-			[startX, startY] = dragStart;
-			const [currX, currY] = mapVW([e.offsetX, e.offsetY]);
-			// Move frame s.t. dragStart is under the clicked point
-			x += startX - currX; y += startY - currY;
-
-			render();
-		});
-
-		canvas.addEventListener("pointerup", () => {
-			console.log("up!");
-			dragStart = null;
-		});
-
-		canvas.addEventListener("pointerleave", () => {
-			console.log("leave!");
-			dragStart = null;
-		});
-
-		canvas.addEventListener("wheel", e => {
-			const zoomRatio = Math.pow(4/3, e.deltaY / 100);
-			// p is the world-coordinate corresponding to the pointer's position.
-			const [pX, pY] = mapVW([e.offsetX, e.offsetY]);
-
-			// v is the vector from the window's position to p.
-			// When the window is zoomed, we want p to remain fixed under the pointer, so we
-			// move the window according to the equation: delta = v - zoom*v = (1 - zoom)*v
-			const [vX, vY] = [pX - x, pY - y];
-			const [dx, dy] = [(1 - zoomRatio)*vX, (1 - zoomRatio)*vY];
-
-			x += dx; y += dy;
-			zoom *= zoomRatio
-			render();
-		});
-	});
-
 	/**
 	 * Map some positon from view-space (relative to the top-left corner of the canvas) to world-space.
 	 */
@@ -134,6 +88,16 @@
 		canvas = document.getElementById("content");
 		gl = canvas.getContext("webgl");
 		gl.clearColor(1, 1, 1, 0);
+
+		/*********************
+		* Add Event Handlers *
+		**********************/
+
+		canvas.addEventListener("pointerdown", handlePointerDown);
+		canvas.addEventListener("pointermove", handlePointerMove);
+		canvas.addEventListener("pointerup", handlePointerUp);
+		canvas.addEventListener("pointerleave", handlePointerLeave);
+		canvas.addEventListener("wheel", handleWheel);
 
 		/************************************
 		 * GL Shader Compilation & Linking. *
@@ -213,6 +177,52 @@
 		gl.clear(gl.COLOR_BUFFER_BIT);
 		gl.useProgram(program);
 		gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+	}
+
+	/*****************
+	* Event Handlers *
+	******************/
+
+	function handlePointerDown(e) {
+		console.log("down!");
+		dragStart = mapVW([e.offsetX, e.offsetY]);
+	}
+
+	function handlePointerMove(e) {
+		if (!dragStart) return;
+
+		[startX, startY] = dragStart;
+		const [currX, currY] = mapVW([e.offsetX, e.offsetY]);
+		// Move frame so that dragStart is under the clicked point
+		x += startX - currX; y += startY - currY;
+
+		render();
+	}
+
+	function handlePointerUp(e) {
+		console.log("up!");
+		dragStart = null;
+	}
+
+	function handlePointerLeave(e) {
+		console.log("leave!");
+		dragStart = null;
+	}
+
+	function handleWheel(e) {
+		const zoomRatio = Math.pow(4/3, e.deltaY / 100);
+		// p is the world-coordinate corresponding to the pointer's position.
+		const [pX, pY] = mapVW([e.offsetX, e.offsetY]);
+
+		// v is the vector from the window's position to p.
+		// When the window is zoomed, we want p to remain fixed under the pointer, so we
+		// move the window according to the equation: delta = v - zoom*v = (1 - zoom)*v
+		const [vX, vY] = [pX - x, pY - y];
+		const [dx, dy] = [(1 - zoomRatio)*vX, (1 - zoomRatio)*vY];
+
+		x += dx; y += dy;
+		zoom *= zoomRatio
+		render();
 	}
 
 </script>
