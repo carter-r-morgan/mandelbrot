@@ -26,15 +26,13 @@
 		const vec4 c1 = vec4(0, 0, 0, 1);
 		const vec4 c2 = vec4(1, 1, 1, 1);
 
-		void main() {
-			float x = complexPos.x;
-			float y = complexPos.y;
-
-			int iters;
+		// Evaluate a point in the complex plane to determine whether it is in
+		// the Mandelbrot set. Return the number of iterations it takes for
+		// the point to be rejected or -1 if the point is in the set.
+		int evalMandelbrot(float x, float y) {
 			for (int i = 0; i < detail; i++) {
 				if (sqrt(x*x + y*y) > 2.0) {
-					iters = i;
-				  break;
+					return i;
 				}
 
 				float nextX = x*x - y*y + complexPos.x;
@@ -42,7 +40,13 @@
 				x = nextX;
 			}
 
-			if (iters == detail) {
+			return -1;
+		}
+
+		void main() {
+			int iters = evalMandelbrot(complexPos.x, complexPos.y);
+
+			if (iters == -1) {
 				gl_FragColor = black;
 			}
 			else {
