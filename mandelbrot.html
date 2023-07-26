@@ -71,14 +71,32 @@
 	window.addEventListener("load", init);
 	window.addEventListener("resize", render);
 
+
+	// World -- View -- Clip -- Canvas
+
 	/**
-	 * Map some positon from view-space (relative to the top-left corner of the canvas) to world-space.
+	 * Map some position from canvas-space to view-space.
+	 */
+	function mapCaV(position) {
+		const [X, Y] = position;
+		const minDim = canvas.width < canvas.height ? canvas.width : canvas.height;
+		return [(X - canvas.width / 2) / minDim * zoom * 2,
+		        -(Y - canvas.height / 2) / minDim * zoom * 2];
+	}
+
+	/**
+	 * Map some position from view-space to world-space.
 	 */
 	function mapVW(position) {
 		const [X, Y] = position;
-		const minDim = canvas.width < canvas.height ? canvas.width : canvas.height;
-		return [(X - canvas.width / 2) / minDim * zoom * 2 + x,
-		        -(Y - canvas.height / 2) / minDim * zoom * 2 + y];
+		return [X + x, Y + y];
+	}
+
+	/**
+	 * Map some positon from canvas-space (relative to the top-left corner of the canvas) to world-space.
+	 */
+	function mapCaW(position) {
+		return mapVW(mapCaV(position));
 	}
 
 	function set(X, Y, Z) {
@@ -162,9 +180,7 @@
 		 * Matrix Transform Uniform Setup *
 		 * May need its own function.     *
 		 **********************************/
-		const [scaleX, scaleY] = canvas.width > canvas.height
-							   ? [zoom * (canvas.width / canvas.height), zoom]
-							   : [zoom, zoom * (canvas.height / canvas.width)];
+		const [scaleX, scaleY] = mapCaV([canvas.width, 0]);
 		let matrix = [
 		  scaleX , 0      , 0,
 		  0      , scaleY , 0,
@@ -189,14 +205,14 @@
 
 	function handlePointerDown(e) {
 		console.log("down!");
-		dragStart = mapVW([e.offsetX, e.offsetY]);
+		dragStart = mapCaW([e.offsetX, e.offsetY]);
 	}
 
 	function handlePointerMove(e) {
 		if (!dragStart) return;
 
 		[startX, startY] = dragStart;
-		const [currX, currY] = mapVW([e.offsetX, e.offsetY]);
+		const [currX, currY] = mapCaW([e.offsetX, e.offsetY]);
 		// Move frame so that dragStart is under the clicked point
 		x += startX - currX; y += startY - currY;
 
@@ -216,7 +232,7 @@
 	function handleWheel(e) {
 		const zoomRatio = Math.pow(4/3, e.deltaY / 100);
 		// p is the world-coordinate corresponding to the pointer's position.
-		const [pX, pY] = mapVW([e.offsetX, e.offsetY]);
+		const [pX, pY] = mapCaW([e.offsetX, e.offsetY]);
 
 		// v is the vector from the window's position to p.
 		// When the window is zoomed, we want p to remain fixed under the pointer, so we
