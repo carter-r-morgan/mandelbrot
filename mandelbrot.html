@@ -28,23 +28,23 @@
 
 		// Evaluate a point in the complex plane to determine whether it is in
 		// the Mandelbrot set. Return the number of iterations it takes for
-		// the point to be rejected or -1 if the point is in the set.
-		int evalMandelbrot(float x, float y) {
+		// the point to be rejected or -1 if the point is never rejected.
+		int evalMandelbrot(vec2 c) {
+			vec2 z = c;
 			for (int i = 0; i < detail; i++) {
-				if (sqrt(x*x + y*y) > 2.0) {
+				if (length(z) > 2.0) {
 					return i;
 				}
 
-				float nextX = x*x - y*y + complexPos.x;
-				y = 2.0*x*y + complexPos.y;
-				x = nextX;
+				// z[n+1] = z[n]**2 + c
+				z = vec2(z.x*z.x - z.y*z.y + c.x, 2.0*z.x*z.y + c.y);
 			}
 
 			return -1;
 		}
 
 		void main() {
-			int iters = evalMandelbrot(complexPos.x, complexPos.y);
+			int iters = evalMandelbrot(complexPos);
 
 			if (iters == -1) {
 				gl_FragColor = black;
