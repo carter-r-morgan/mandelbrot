@@ -9,19 +9,28 @@
 	const vertexShader = `
 		attribute vec2 renderPos;
 		uniform mat3 transform;
+		uniform mat3 referenceOffsetTransform;
 		varying vec2 complexPos;
+		varying vec2 delta;
 
 		void main() {
 			complexPos = vec2(transform * vec3(renderPos, 1));
+			delta = vec2(referenceOffsetTransform * vec3(renderPos, 1));
 			gl_Position = vec4(renderPos, 0, 1);
 		}
 	`;
 
+	const DETAIL = 64;
+
 	const fragmentShader = `
 		precision highp float;
 
+		const int detail = 64;
+
 		varying vec2 complexPos;
-		const int detail = 20;
+		varying vec2 delta;
+		uniform vec2 referenceOrbit[detail];
+
 		const vec4 black = vec4(0, 0, 0, 1);
 		const vec4 c1 = vec4(0, 0, 0, 1);
 		const vec4 c2 = vec4(1, 1, 1, 1);
@@ -43,8 +52,33 @@
 			return -1;
 		}
 
+		/**
+		 * Evaluate a point in the complex plane to determine whether it is in
+		 * the Mandelbrot set. This fuction uses the iterations of a known
+		 * reference point (referenceOrbit) and an initial offset (d0) to
+		 * determine whether a point is in the set.
+		 *
+		 * Based on: https://web.archive.org/web/20140628114658/http://www.superfractalthing.co.nf/sft_maths.pdf
+		 */
+		int evalMandelbrotFromReference(vec2 d0) {
+			vec2 d = d0;
+			for (int i = 0; i < detail; i++) {
+				if (length(d + referenceOrbit[i]) > 2.0) {
+					return i;
+				}
+
+				// From SFT Maths paper:
+				// d[n+1] = 2*ref[n]*d[n] + d[n]**2 + d[0]
+				d = vec2(2.0*referenceOrbit[i].x*d.x - 2.0*referenceOrbit[i].y*d.y + d.x*d.x - d.y*d.y + d0.x,
+						 2.0*referenceOrbit[i].x*d.y + 2.0*referenceOrbit[i].y*d.x + 2.0*d.x*d.y + d0.y);
+			}
+
+			return -1;
+		}
+
 		void main() {
-			int iters = evalMandelbrot(complexPos);
+			// int iters = evalMandelbrot(complexPos);
+			int iters = evalMandelbrotFromReference(delta);
 
 			if (iters == -1) {
 				gl_FragColor = black;
@@ -104,6 +138,35 @@
 		y = Y;
 		zoom = Z;
 		render();
+	}
+
+	/**
+	 * Evaluate a point in the complex plane to determine whether it is in
+	 * the Mandelbrot set. Return the number of iterations it takes for
+	 * the point to be rejected or -1 if the point is never rejected.
+	 * 
+	 * Additionally the buffer arr will be populated with each position
+	 * in the iteration. The points are entered flat
+	 * (e.g. [z_0x, z_0y, z_1x, z_1y, ...]) so the length of arr must be twice
+	 * the maximum iteration count (dwell).
+	 */
+	function evalMandelbrot(X, Y, dwell, arr) {
+		let [zx, zy] = [X, Y];
+		let [x2, y2] = [zx*zx, zy*zy];
+		for (let i = 0; i < dwell; i++) {
+			if (x2 + y2 > 4) return i;
+
+			// Enter this point into arr. Points are entered flat
+			// since that is what WebGL expects.
+			arr[2*i] 	 = zx;
+			arr[2*i + 1] = zy
+
+			next = [x2 - y2 + X, 2*zx*zy + Y];
+			[zx, zy] = next;
+			[x2, y2] = [zx*zx, zy*zy];
+		}
+
+		return -1;
 	}
 
 	function init() {
@@ -176,10 +239,10 @@
 		canvas.height = pixelRatio * canvas.clientHeight;
 		gl.viewport(0, 0, canvas.width, canvas.height);
 
-		/**********************************
-		 * Matrix Transform Uniform Setup *
-		 * May need its own function.     *
-		 **********************************/
+		/************************************
+		 * Position Transform Uniform Setup *
+		 * May need its own function.       *
+		 ************************************/
 		const [scaleX, scaleY] = mapCaV([canvas.width, 0]);
 		let matrix = [
 		  scaleX , 0      , 0,
@@ -190,6 +253,38 @@
 		const m = gl.getUniformLocation(program, "transform");
 		gl.useProgram(program);
 		gl.uniformMatrix3fv(m, false, matrix);
+
+		/********************************************
+		 * Reference Offset Transform Uniform Setup *
+		 * May need its own function.               *
+		 ********************************************/
+
+		// TEST REFERENCE POINT 
+		const TEST_REF = [-0.61580037296, -0.61591463888]; // TODO: dynamically find a suitable reference point.
+		let [refX, refY] = TEST_REF;
+
+		const referenceOffsetTransform = [
+		  scaleX   , 0        , 0,
+		  0        , scaleY   , 0,
+		  x - refX , y - refY , 1
+		];
+
+		const rot = gl.getUniformLocation(program, "referenceOffsetTransform");
+		gl.useProgram(program);
+		gl.uniformMatrix3fv(rot, false, referenceOffsetTransform);
+
+		/*********************************
+		 * Reference Orbit Uniform Setup *
+		 * May need its own function.    *
+		 *********************************/
+		const referenceOrbit = new Array(2 * DETAIL);
+		if (evalMandelbrot(refX, refY, DETAIL, referenceOrbit) !== -1)
+			alert("!!! BAD REFERENCE POINT !!!");
+
+		const ro = gl.getUniformLocation(program, "referenceOrbit");
+		gl.useProgram(program);
+		gl.uniform2fv(ro, referenceOrbit);
+
 
 		/*****************************
 		 * Actually render the scene *
@@ -205,6 +300,7 @@
 
 	function handlePointerDown(e) {
 		console.log("down!");
+		console.log(mapCaW([e.offsetX, e.offsetY]));
 		dragStart = mapCaW([e.offsetX, e.offsetY]);
 	}
 
