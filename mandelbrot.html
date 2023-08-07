@@ -100,6 +100,9 @@
 
 	let zoom = 3;
 	let x = 0, y = 0;
+	let refX = 0, refY = 0;
+	let referenceOrbit = Array.from({ length: 2 * DETAIL }, () => 0);
+	let testOrbit = new Array(2 * DETAIL);
 	let dragStart = null;
 
 	window.addEventListener("load", init);
@@ -159,7 +162,7 @@
 			// Enter this point into arr. Points are entered flat
 			// since that is what WebGL expects.
 			arr[2*i] 	 = zx;
-			arr[2*i + 1] = zy
+			arr[2*i + 1] = zy;
 
 			next = [x2 - y2 + X, 2*zx*zy + Y];
 			[zx, zy] = next;
@@ -167,6 +170,42 @@
 		}
 
 		return -1;
+	}
+
+	/**
+	 * Generate a random point uniformly from the unit circle.
+	 */
+	function randomCircle() {
+		const theta = Math.random() * 2 * Math.PI;
+	  	const radius = Math.sqrt(Math.random());
+	  	return [Math.cos(theta) * radius, Math.sin(theta) * radius];
+	}
+
+	/**
+	 * Test points around (X, Y) to update the reference point to one
+	 * closer to (X, Y).
+	 */
+	function updateRef(X, Y) {
+		if (evalMandelbrot(X, Y, DETAIL, testOrbit) === -1) {
+				[refX, refY] = [X, Y];
+				[referenceOrbit, testOrbit] = [testOrbit, referenceOrbit];
+		}
+		else {
+			// Test points must be closer than the current reference point
+			// and meet some base distance from (X, Y) (currently zoom / 20).
+			let testRadius = Math.min(Math.sqrt((refX - X)**2 + (refY - Y)**2),
+			                          zoom / 20);
+			let testCount = 100;
+			for (let i = 0; i < testCount; i++) {
+				let [rX, rY] = randomCircle();
+				[rX, rY] = [rX * testRadius + X, rY * testRadius + Y];
+				if (evalMandelbrot(rX, rY, DETAIL, testOrbit) === -1) {
+					[refX, refY] = [rX, rY];
+					[referenceOrbit, testOrbit] = [testOrbit, referenceOrbit];
+					break;
+				}
+			}
+		}
 	}
 
 	function init() {
@@ -258,11 +297,6 @@
 		 * Reference Offset Transform Uniform Setup *
 		 * May need its own function.               *
 		 ********************************************/
-
-		// TEST REFERENCE POINT 
-		const TEST_REF = [-0.61580037296, -0.61591463888]; // TODO: dynamically find a suitable reference point.
-		let [refX, refY] = TEST_REF;
-
 		const referenceOffsetTransform = [
 		  scaleX   , 0        , 0,
 		  0        , scaleY   , 0,
@@ -277,10 +311,6 @@
 		 * Reference Orbit Uniform Setup *
 		 * May need its own function.    *
 		 *********************************/
-		const referenceOrbit = new Array(2 * DETAIL);
-		if (evalMandelbrot(refX, refY, DETAIL, referenceOrbit) !== -1)
-			alert("!!! BAD REFERENCE POINT !!!");
-
 		const ro = gl.getUniformLocation(program, "referenceOrbit");
 		gl.useProgram(program);
 		gl.uniform2fv(ro, referenceOrbit);
@@ -329,6 +359,8 @@
 		const zoomRatio = Math.pow(4/3, e.deltaY / 100);
 		// p is the world-coordinate corresponding to the pointer's position.
 		const [pX, pY] = mapCaW([e.offsetX, e.offsetY]);
+
+		updateRef(pX, pY);
 
 		// v is the vector from the window's position to p.
 		// When the window is zoomed, we want p to remain fixed under the pointer, so we
