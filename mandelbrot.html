@@ -26,6 +26,7 @@
 		precision highp float;
 
 		const int detail = 64;
+		const float escape_radius = 256.0;
 
 		varying vec2 complexPos;
 		varying vec2 delta;
@@ -41,7 +42,7 @@
 		int evalMandelbrot(vec2 c) {
 			vec2 z = c;
 			for (int i = 0; i < detail; i++) {
-				if (length(z) > 2.0) {
+				if (length(z) > escape_radius) {
 					return i;
 				}
 
@@ -52,6 +53,11 @@
 			return -1;
 		}
 
+		struct orbitInfo {
+			vec2 zn;
+			int n;
+		};
+
 		/**
 		 * Evaluate a point in the complex plane to determine whether it is in
 		 * the Mandelbrot set. This fuction uses the iterations of a known
@@ -60,11 +66,11 @@
 		 *
 		 * Based on: https://web.archive.org/web/20140628114658/http://www.superfractalthing.co.nf/sft_maths.pdf
 		 */
-		int evalMandelbrotFromReference(vec2 d0) {
+		orbitInfo evalMandelbrotFromReference(vec2 d0) {
 			vec2 d = d0;
 			for (int i = 0; i < detail; i++) {
-				if (length(d + referenceOrbit[i]) > 2.0) {
-					return i;
+				if (length(d + referenceOrbit[i]) > escape_radius) {
+					return orbitInfo(d + referenceOrbit[i], i);
 				}
 
 				// From SFT Maths paper:
@@ -73,18 +79,26 @@
 						 2.0*referenceOrbit[i].x*d.y + 2.0*referenceOrbit[i].y*d.x + 2.0*d.x*d.y + d0.y);
 			}
 
-			return -1;
+			return orbitInfo(d + referenceOrbit[detail - 1], -1);
 		}
 
 		void main() {
 			// int iters = evalMandelbrot(complexPos);
-			int iters = evalMandelbrotFromReference(delta);
+			orbitInfo info = evalMandelbrotFromReference(delta);
+			int iters = info.n;
 
 			if (iters == -1) {
 				gl_FragColor = black;
 			}
+			// else if (complexPos.y > 2.5 && complexPos.y <= 3.0) {
+			// 	gl_FragColor = vec4(sin(complexPos.x + vec3(0, 3.1415*2.0/3.0, 3.1415*4.0/3.0)) * 0.5 + 0.5, 1);
+			// }
 			else {
-				gl_FragColor = mix(c1, c2, float(iters) / float(detail));
+				float D = float(iters) - log2(log2(length(info.zn))) + log2(log2(escape_radius));
+				vec3 color = sin(D*0.1 + vec3(3.944444, 4.782202, 0.0)) * 0.5 + 0.5;
+				//color = mix(vec3(0), color, float(iters) / float(detail));
+				gl_FragColor = vec4(color, 1);
+				//gl_FragColor = mix(c1, c2, float(iters) / float(detail));
 			}
 		}
 	`;
