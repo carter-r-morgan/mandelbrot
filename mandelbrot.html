@@ -117,8 +117,7 @@
 	let refX = 0, refY = 0;
 	let referenceOrbit = Array.from({ length: 2 * DETAIL }, () => 0);
 	let testOrbit = new Array(2 * DETAIL);
-	
-	let pointerIds = [];
+	let pointerEvents = [];
 	let dragStartLocation = null;
 	let pinchStartDiameter = null;
 
@@ -151,6 +150,21 @@
 	 */
 	function mapCaW(position) {
 		return mapVW(mapCaV(position));
+	}
+
+	/**
+	 * Zoom the view by some ratio such that a given point remains fixed on the screen.
+	 */
+	function zoomAroundPoint(X, Y, zoomRatio) {
+		updateRef(X, Y);
+		// v is the vector from the window's position to p.
+		// When the window is zoomed, we want p to remain at a fixed position on the screen, so we
+		// move the window according to the equation: delta = v - zoom*v = (1 - zoom)*v
+		const [vX, vY] = [X - x, Y - y];
+		const [dx, dy] = [(1 - zoomRatio)*vX, (1 - zoomRatio)*vY];
+
+		x += dx; y += dy;
+		zoom *= zoomRatio
 	}
 
 	function set(X, Y, Z) {
@@ -349,30 +363,63 @@
 
 
 	function handlePointerDown(e) {
-		if (pointerIds.length === 1) return;
-		console.log("down!");
-		console.log(mapCaW([e.offsetX, e.offsetY]));
-		dragStartLocation = mapCaW([e.offsetX, e.offsetY]);
-		pointerIds.push(e.pointerId);
+		if (pointerEvents.length === 0) {
+			dragStartLocation = mapCaW([e.offsetX, e.offsetY]);
+			pointerEvents.push(e);
+		}
+		else if (pointerEvents.length === 1) {
+			let [uX, uY] = dragStartLocation;
+			let [vX, vY] = mapCaW([e.offsetX, e.offsetY]);
+			dragStartLocation = [(uX + vX) / 2, (uY + vY) / 2];
+			pinchStartDiameter = Math.sqrt((uX - vX)**2 + (uY - vY)**2);
+			pointerEvents.push(e);
+		}
+		console.log(pointerEvents);
 	}
 
 	function handlePointerMove(e) {
-		if (!pointerIds.includes(e.pointerId)) return;
+		let index = pointerEvents.findIndex(event => event.pointerId === e.pointerId);
+		if (index < 0) return;
+		pointerEvents.splice(index, 1, e);
 
-		[startX, startY] = dragStartLocation;
-		const [currX, currY] = mapCaW([e.offsetX, e.offsetY]);
-		// Move frame so that dragStartLocation is under the clicked point
-		x += startX - currX; y += startY - currY;
+		if (pointerEvents.length === 1) {
+			const [startX, startY] = dragStartLocation;
+			const [currX, currY] = mapCaW([e.offsetX, e.offsetY]);
+			// Move frame so that dragStartLocation is under the pointer
+			x += startX - currX; y += startY - currY;
+		}
+		else if (pointerEvents.length === 2) {
+			const [startX, startY] = dragStartLocation;
+			const startDiameter = pinchStartDiameter;
+
+			let u = pointerEvents[0];
+			let v = pointerEvents[1];
+			let [uX, uY] = mapCaW([u.offsetX, u.offsetY]);
+			let [vX, vY] = mapCaW([v.offsetX, v.offsetY]);
+			const [currX, currY] = [(uX + vX) / 2, (uY + vY) / 2];
+			const currDiameter = Math.sqrt((uX - vX)**2 + (uY - vY)**2);
+
+			x += startX - currX; y += startY - currY;
+			zoomAroundPoint(startX, startY, startDiameter / currDiameter);
+		}
 
 		render();
 	}
 
 	function handlePointerEnd(e) {
-		console.log("up!");
-		let index = pointerIds.indexOf(e.pointerId);
+		let index = pointerEvents.findIndex(event => event.pointerId === e.pointerId);
 		if (index < 0) return;
-		pointerIds.splice(index, 1);
-		dragStartLocation = null;
+		pointerEvents.splice(index, 1);
+
+		if (pointerEvents.length === 0) {
+			dragStartLocation = null;
+		}
+		else if (pointerEvents.length === 1) {
+			pinchStartDiameter = null;
+			let pointer = pointerEvents[0];
+			dragStartLocation = mapCaW([pointer.offsetX, pointer.offsetY]);
+		}
+		console.log(pointerEvents);
 	}
 
 	function handleWheel(e) {
@@ -380,16 +427,7 @@
 		// p is the world-coordinate corresponding to the pointer's position.
 		const [pX, pY] = mapCaW([e.offsetX, e.offsetY]);
 
-		updateRef(pX, pY);
-
-		// v is the vector from the window's position to p.
-		// When the window is zoomed, we want p to remain fixed under the pointer, so we
-		// move the window according to the equation: delta = v - zoom*v = (1 - zoom)*v
-		const [vX, vY] = [pX - x, pY - y];
-		const [dx, dy] = [(1 - zoomRatio)*vX, (1 - zoomRatio)*vY];
-
-		x += dx; y += dy;
-		zoom *= zoomRatio
+		zoomAroundPoint(pX, pY, zoomRatio);
 		render();
 	}
 
