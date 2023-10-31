@@ -117,7 +117,10 @@
 	let refX = 0, refY = 0;
 	let referenceOrbit = Array.from({ length: 2 * DETAIL }, () => 0);
 	let testOrbit = new Array(2 * DETAIL);
-	let dragStart = null;
+	
+	let pointerIds = [];
+	let dragStartLocation = null;
+	let pinchStartDiameter = null;
 
 	window.addEventListener("load", init);
 	window.addEventListener("resize", render);
@@ -233,8 +236,10 @@
 
 		canvas.addEventListener("pointerdown", handlePointerDown);
 		canvas.addEventListener("pointermove", handlePointerMove);
-		canvas.addEventListener("pointerup", handlePointerUp);
-		canvas.addEventListener("pointerleave", handlePointerLeave);
+		canvas.addEventListener("pointerup", handlePointerEnd);
+		canvas.addEventListener("pointerleave", handlePointerEnd);
+		canvas.addEventListener("pointercancel", handlePointerEnd);
+		canvas.addEventListener("pointerout", handlePointerEnd);
 		canvas.addEventListener("wheel", handleWheel);
 
 		/************************************
@@ -342,31 +347,32 @@
 	* Event Handlers *
 	******************/
 
+
 	function handlePointerDown(e) {
+		if (pointerIds.length === 1) return;
 		console.log("down!");
 		console.log(mapCaW([e.offsetX, e.offsetY]));
-		dragStart = mapCaW([e.offsetX, e.offsetY]);
+		dragStartLocation = mapCaW([e.offsetX, e.offsetY]);
+		pointerIds.push(e.pointerId);
 	}
 
 	function handlePointerMove(e) {
-		if (!dragStart) return;
+		if (!pointerIds.includes(e.pointerId)) return;
 
-		[startX, startY] = dragStart;
+		[startX, startY] = dragStartLocation;
 		const [currX, currY] = mapCaW([e.offsetX, e.offsetY]);
-		// Move frame so that dragStart is under the clicked point
+		// Move frame so that dragStartLocation is under the clicked point
 		x += startX - currX; y += startY - currY;
 
 		render();
 	}
 
-	function handlePointerUp(e) {
+	function handlePointerEnd(e) {
 		console.log("up!");
-		dragStart = null;
-	}
-
-	function handlePointerLeave(e) {
-		console.log("leave!");
-		dragStart = null;
+		let index = pointerIds.indexOf(e.pointerId);
+		if (index < 0) return;
+		pointerIds.splice(index, 1);
+		dragStartLocation = null;
 	}
 
 	function handleWheel(e) {
@@ -394,6 +400,7 @@
 		position: absolute;
 		width: 100%;
 		height: 100%;
+		touch-action: none;
 	}
 
 	#controls {
