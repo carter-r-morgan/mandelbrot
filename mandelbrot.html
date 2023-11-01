@@ -423,6 +423,7 @@
 	}
 
 	function handleWheel(e) {
+		e.preventDefault();
 		const zoomRatio = Math.pow(4/3, e.deltaY / 100);
 		// p is the world-coordinate corresponding to the pointer's position.
 		const [pX, pY] = mapCaW([e.offsetX, e.offsetY]);
