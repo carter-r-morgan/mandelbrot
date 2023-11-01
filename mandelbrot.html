@@ -32,10 +32,6 @@
 		varying vec2 delta;
 		uniform vec2 referenceOrbit[detail];
 
-		const vec4 black = vec4(0, 0, 0, 1);
-		const vec4 c1 = vec4(0, 0, 0, 1);
-		const vec4 c2 = vec4(1, 1, 1, 1);
-
 		// Evaluate a point in the complex plane to determine whether it is in
 		// the Mandelbrot set. Return the number of iterations it takes for
 		// the point to be rejected or -1 if the point is never rejected.
@@ -59,39 +55,41 @@
 		 * reference point (referenceOrbit) and an initial offset (d0) to
 		 * determine whether a point is in the set.
 		 *
-		 * Based on: https://web.archive.org/web/20140628114658/http://www.superfractalthing.co.nf/sft_maths.pdf
+		 * Returns a continuous representation of the length of time required
+		 * for a point to be disqualified, or -1.0 if it is in the set.
+		 *
+		 * Based on:
+		 *   [1] https://web.archive.org/web/20140628114658/http://www.superfractalthing.co.nf/sft_maths.pdf
+		 *   [2] http://www.mrob.com/pub/muency/continuousdwell.html
 		 */
 		float evalMandelbrotFromReference(vec2 d0) {
 			vec2 d = d0;
 			for (int i = 0; i < detail; i++) {
-				if (length(d + referenceOrbit[i]) > escape_radius) {
-					return float(i) - log2(log2(length(d + referenceOrbit[i]))) + log2(log2(escape_radius));
+				vec2 Z = referenceOrbit[i];
+
+				if (length(d + Z) > escape_radius) {
+					// Continuous dwell from [2]
+					return float(i) - log2(log2(length(d + Z))) + log2(log2(escape_radius));
 				}
 
-				// From SFT Maths paper:
+				// Reference-based iteration from [1]
 				// d[n+1] = 2*ref[n]*d[n] + d[n]**2 + d[0]
-				d = vec2(2.0*referenceOrbit[i].x*d.x - 2.0*referenceOrbit[i].y*d.y + d.x*d.x - d.y*d.y + d0.x,
-						 2.0*referenceOrbit[i].x*d.y + 2.0*referenceOrbit[i].y*d.x + 2.0*d.x*d.y + d0.y);
+				d = vec2(2.0*Z.x*d.x - 2.0*Z.y*d.y + d.x*d.x - d.y*d.y + d0.x,
+						 2.0*Z.x*d.y + 2.0*Z.y*d.x + 2.0*d.x*d.y + d0.y);
 			}
 
 			return -1.0;
 		}
 
 		void main() {
-			// int iters = evalMandelbrot(complexPos);
 			float D = evalMandelbrotFromReference(delta);
 
 			if (D == -1.0) {
-				gl_FragColor = black;
+				gl_FragColor = vec4(0, 0, 0, 1);
 			}
-			// else if (complexPos.y > 2.5 && complexPos.y <= 3.0) {
-			// 	gl_FragColor = vec4(sin(complexPos.x + vec3(0, 3.1415*2.0/3.0, 3.1415*4.0/3.0)) * 0.5 + 0.5, 1);
-			// }
 			else {
 				vec3 color = sin(D*0.1 + vec3(3.944444, 4.782202, 0.0)) * 0.5 + 0.5;
-				//color = mix(vec3(0), color, float(iters) / float(detail));
 				gl_FragColor = vec4(color, 1);
-				//gl_FragColor = mix(c1, c2, float(iters) / float(detail));
 			}
 		}
 	`;
