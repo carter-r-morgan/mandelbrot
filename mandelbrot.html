@@ -132,9 +132,9 @@
 	 */
 	function mapCaV(position) {
 		const [X, Y] = position;
-		const minDim = canvas.width < canvas.height ? canvas.width : canvas.height;
-		return [(X - canvas.width / 2) / minDim * zoom * 2,
-		        -(Y - canvas.height / 2) / minDim * zoom * 2];
+		const minDim = canvas.clientWidth < canvas.clientHeight ? canvas.clientWidth : canvas.clientHeight;
+		return [(X - canvas.clientWidth / 2) / minDim * zoom * 2,
+		        -(Y - canvas.clientHeight / 2) / minDim * zoom * 2];
 	}
 
 	/**
@@ -315,7 +315,7 @@
 		 * Position Transform Uniform Setup *
 		 * May need its own function.       *
 		 ************************************/
-		const [scaleX, scaleY] = mapCaV([canvas.width, 0]);
+		const [scaleX, scaleY] = mapCaV([canvas.clientWidth, 0]);
 		let matrix = [
 		  scaleX , 0      , 0,
 		  0      , scaleY , 0,
